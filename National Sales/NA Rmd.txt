@@ -1,0 +1,470 @@
+---
+title: "Retention Report - February 2019"
+author: "Pratt Industries Whitsett"
+date: "`r format(Sys.Date(),format = '%B %d, %Y')`"
+header-includes: 
+   \usepackage{graphicx}
+   \usepackage{fancyhdr}
+   \fancyhf{}
+   \pagestyle{fancy}
+   \setlength\headheight{28pt}
+   \lhead{\includegraphics[width = 1.75cm]{PESLogoBlue.png}}
+   \usepackage{fontspec}
+   \setmainfont{Cambria}
+output: 
+    pdf_document:
+        latex_engine: xelatex
+geometry: margin = 0.5 in
+---
+\thispagestyle{fancy}
+
+\vspace{40pt}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = FALSE,dev = "cairo_pdf",
+                      comment = FALSE)
+```
+
+
+```{r, echo = F}
+library(knitr)
+if(is_latex_output()) {
+  plot_default <- knit_hooks$get("plot")
+  knit_hooks$set(plot = function(x, options) { 
+    x <- c(plot_default(x, options), "\\vspace{25pt}")
+  })
+}
+```
+
+
+```{r cars}
+library(readxl)
+library(tidyverse)
+library(lubridate)
+library(ggthemes)
+library(scales)
+library(gridExtra)
+library(extrafont)
+library(knitr)
+library(kableExtra)
+loadfonts()
+
+
+XPO_Manteno <- read_excel("C:/Users/Callin/Desktop/03-18-2019 Pratt Whitset.xlsx", 
+                          sheet = "Overall Data", na = "NULL")
+
+XPO_Manteno_Ended <- read_excel("C:/Users/Callin/Desktop/03-18-2019 Pratt Whitset.xlsx", 
+                          sheet = "Ended Assignments", na = "NULL")
+
+
+# PapaPita <- read_excel("C:/Users/Callin/Desktop/Papa Pita.xlsx", 
+#                           sheet = "Overall Data", na = "NULL")
+# 
+# PapaPita_Ended <- read_excel("C:/Users/Callin/Desktop/Papa Pita.xlsx", 
+#                              sheet = "Ended Assignments", na = "NULL")
+
+startDate <- floor_date(Sys.Date(),unit = "month") - years(2)
+endDate <- floor_date(Sys.Date(),unit = "month")
+startDateOneYear <- floor_date(Sys.Date(),unit = "month") - years(1)
+
+startYear <- floor_date(Sys.Date(), unit = "year") -years(2)
+
+
+data <- XPO_Manteno
+data_ended <- XPO_Manteno_Ended
+
+tableData <- data %>% unite("Date" , c("Year","Month"), sep = "-",remove = FALSE) %>%
+    mutate(Date = ymd(Date,truncated = 1),
+           Quarter = quarter(Date),
+           `Percent Left` = OneCheck/TotalNew) %>% 
+    dplyr::filter(Date >= startDate, Date < endDate)
+
+thisYearTableData <- tableData %>% 
+    dplyr::filter(Date >= startDateOneYear) %>% 
+    arrange(Date)
+
+lastYearTableData <- tableData %>% 
+    dplyr::filter(Date < startDateOneYear) %>% 
+    arrange(Date)
+
+thisMonthTableData <- thisYearTableData %>% slice(which.max(Date))
+
+lastMonthTableData <- lastYearTableData %>% 
+    dplyr::filter(Date == max(thisMonthTableData$Date) - years(1))
+
+
+
+masterData <- data %>% unite("Date" , c("Year","Month"), sep = "-",remove = FALSE) %>%
+    mutate(Date = ymd(Date,truncated = 1),
+           Quarter = quarter(Date),
+           `Percent Left` = OneCheck/TotalNew) %>% 
+    dplyr::filter(Date >= startYear, Date < endDate)
+
+masterDataEnded <- data_ended %>% mutate(Type = word(Explanation,1)) %>% 
+    dplyr::filter(EndDate < endDate)
+
+
+totalApplicants <- c("Total Applicants",
+                     paste0(comma(sum(lastYearTableData$TotalApplicants, na.rm = TRUE)),
+                           " (",ifelse(is.na(mean(lastYearTableData$TotalApplicants, na.rm = TRUE)),
+                                         0,
+                                         comma(mean(lastYearTableData$TotalApplicants, na.rm = TRUE))),
+                           "/Month)"),
+                     paste0(comma(sum(thisYearTableData$TotalApplicants, na.rm = TRUE)),
+                            " (",ifelse(is.na(mean(thisYearTableData$TotalApplicants, na.rm = TRUE)),
+                                        0,
+                                        comma(mean(thisYearTableData$TotalApplicants, na.rm = TRUE))),
+                            "/Month)"),
+                     ifelse(length(lastMonthTableData$TotalApplicants) < 1,
+                        0 , 
+                        lastMonthTableData$TotalApplicants),
+                     ifelse(length(thisMonthTableData$TotalApplicants) < 1 | is.na(thisMonthTableData$TotalAssigned),
+                            0 , 
+                            thisMonthTableData$TotalApplicants))
+
+totalAssignments <- c("Total Assignments",
+                     paste0(comma(sum(lastYearTableData$TotalAssigned, na.rm = TRUE)),
+                            " (",ifelse(is.na(mean(lastYearTableData$TotalAssigned, na.rm = TRUE)),
+                                        0,
+                                        comma(mean(lastYearTableData$TotalAssigned, na.rm = TRUE))),
+                            "/Month)"),
+                     paste0(comma(sum(thisYearTableData$TotalAssigned, na.rm = TRUE)),
+                            " (",ifelse(is.na(mean(thisYearTableData$TotalAssigned, na.rm = TRUE)),
+                                        0,
+                                        comma(mean(thisYearTableData$TotalAssigned, na.rm = TRUE))),
+                            "/Month)"),
+                     ifelse(length(lastMonthTableData$TotalAssigned) < 1 | is.na(thisMonthTableData$TotalAssigned),
+                            0 , 
+                            lastMonthTableData$TotalAssigned),
+                     ifelse(length(thisMonthTableData$TotalAssigned) < 1,
+                            0 , 
+                            thisMonthTableData$TotalAssigned))
+totalNew <- c("Total Paid / New Hires",
+                      paste0(comma(sum(lastYearTableData$TotalNew, na.rm = TRUE)),
+                             " (",ifelse(is.na(mean(lastYearTableData$TotalNew, na.rm = TRUE)),
+                                         0,
+                                         comma(mean(lastYearTableData$TotalNew, na.rm = TRUE))),
+                             "/Month)"),
+                      paste0(comma(sum(thisYearTableData$TotalNew, na.rm = TRUE)),
+                             " (",ifelse(is.na(mean(thisYearTableData$TotalNew, na.rm = TRUE)),
+                                         0,
+                                         comma(mean(thisYearTableData$TotalNew, na.rm = TRUE))),
+                             "/Month)"),
+                      ifelse(length(lastMonthTableData$TotalNew) < 1,
+                             0 , 
+                             lastMonthTableData$TotalNew),
+                      ifelse(length(thisMonthTableData$TotalNew) < 1 | is.na(thisMonthTableData$TotalNew),
+                             0 , 
+                             thisMonthTableData$TotalNew))
+
+last2checks <- c("Paid on Last 2 Checks",
+                 paste0(comma(sum(lastYearTableData$StillWorking, na.rm = TRUE)),
+                        " (",ifelse(is.na(mean(lastYearTableData$StillWorking, na.rm = TRUE)) |
+                                     sum(lastYearTableData$TotalNew, na.rm = TRUE) == 0   ,
+                                    '0%',
+                                    percent(sum(lastYearTableData$StillWorking, na.rm = TRUE)/
+                                                sum(lastYearTableData$TotalNew, na.rm = TRUE))),
+                        " of New Hires)"),
+              paste0(comma(sum(thisYearTableData$StillWorking, na.rm = TRUE)),
+                     " (",ifelse(is.na(mean(thisYearTableData$StillWorking, na.rm = TRUE)) |
+                                     sum(thisYearTableData$TotalNew, na.rm = TRUE) == 0,
+                                 '0%',
+                                 percent(sum(thisYearTableData$StillWorking, na.rm = TRUE)/
+                                         sum(thisYearTableData$TotalNew, na.rm = TRUE))),
+                     " of New Hires)"),
+              ifelse(length(lastMonthTableData$StillWorking) < 1,
+                     0 , 
+                     lastMonthTableData$StillWorking),
+              ifelse(length(thisMonthTableData$StillWorking) < 1  | is.na(thisMonthTableData$StillWorking),
+                     0 , 
+                     thisMonthTableData$StillWorking))
+
+table <- rbind(totalApplicants,totalAssignments,totalNew,last2checks,deparse.level = 0)
+
+colnames(table) <-  c("",
+                      "13-24 Months",
+                      "Past 12 Months",
+                      paste(month(max(thisMonthTableData$Date),label = TRUE), year(max(thisMonthTableData$Date - years(1)))),
+                      paste(month(max(thisMonthTableData$Date),label = TRUE), year(max(thisMonthTableData$Date)))
+                      )
+
+table <- as_tibble(table,.name_repair = "minimal")
+
+kable(table,booktabs = TRUE) %>% 
+    kable_styling( #full_width = TRUE,
+                   latex_options = "striped", 
+                  stripe_color = "#446ca9",
+                  font_size = 13 ) %>% 
+    column_spec(1, border_right = TRUE) %>% 
+    row_spec(c(1,3), color = "white")
+```
+
+
+\vspace{15pt}
+
+```{r}
+
+avgFTE <- masterData %>% group_by(Year) %>%
+    summarise(Average = mean(`Percent Left`,na.rm = TRUE)) %>%
+    mutate(Average = percent_format(accuracy = .01)(Average))
+output <- "Average |"
+for(i in 1:nrow(avgFTE)){
+    output <- paste(output,avgFTE$Year[i],"-",avgFTE$Average[i], "|")
+}
+
+p1_data <- masterData %>% group_by(Year, Quarter) %>% 
+    summarise(`Percent Left` = round(mean(`Percent Left`,na.rm = TRUE),3)) %>% 
+    ungroup() %>% 
+    mutate(Quarter = paste0("Q",Quarter)) %>% 
+    dplyr::filter(`Percent Left` > 0)
+
+p1 <- ggplot(p1_data,aes(x =Quarter, y = `Percent Left`,fill = as.factor(Year))) + 
+    geom_bar(stat = "identity",position = position_dodge2(width= .95,preserve = "single")) +
+    geom_text(stat = "identity", 
+              aes(x = Quarter, y = `Percent Left`,
+                  label = percent_format(accuracy = 1)(`Percent Left`)),
+              angle = 0,position = position_dodge2(width = 0.95, preserve = "single"), 
+              vjust = -1, family = "Cambria")+
+    ggtitle("Percent of Associates Leaving after One Check",
+            subtitle = output) +
+    theme_bw(base_family = "Cambria") + 
+    scale_fill_manual(values = c("#446ca9","#6ca944","#a9446c"),
+                      labels = stringr::str_pad(sort(unique(p1_data$Year)),10,"right") ) +
+    scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0,max(masterData$`Percent Left`, na.rm = TRUE)*1.25)) +
+    scale_x_discrete(limits = c("Q1","Q2","Q3","Q4")) +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+          plot.subtitle = element_text(hjust = 0.5, face = "plain"),
+          legend.title = element_blank(),
+          legend.spacing.x = unit(0.25,"cm"),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+
+#print(p1)
+
+
+avgHeadCount <- masterData %>% group_by(Year) %>%
+    summarise(Average = mean(FTE,na.rm = TRUE)) %>%
+    mutate(Average = comma_format(accuracy = .01)(Average))
+
+output1 <- "Average |"
+for(i in 1:nrow(avgHeadCount)){
+    output1 <- paste(output1,avgHeadCount$Year[i],"-",avgHeadCount$Average[i], "|")
+}
+
+p2 <- ggplot(masterData,aes(x = month.abb[Month], y = FTE ,fill = as.factor(Year),
+                      family = "Cambria")) + 
+    geom_bar(stat = "identity",position = position_dodge2(width= .95,preserve = "single")) +
+    geom_text(stat = "identity", 
+              aes(x = Month, y = `FTE`,
+                  label = comma_format(accuracy = 1)(`FTE`)),
+              angle = 0,position = position_dodge2(width = 0.95, preserve = "single"), 
+              vjust = -1)+
+    ggtitle("Average Monthly Headcount",
+            subtitle = output1) +
+    theme_bw(base_family = "Cambria") + 
+    scale_fill_manual(values = c("#446ca9","#6ca944","#a9446c"),
+                      labels = stringr::str_pad(sort(unique(masterData$Year)),10,"right") ) +
+    scale_y_continuous(labels = comma_format(accuracy = 1), limits = c(0,max(masterData$FTE, na.rm = TRUE)*1.25)) +
+    scale_x_discrete(limits = month.abb) +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+          plot.subtitle = element_text(hjust = 0.5, face = "plain"),
+          legend.title = element_blank(),
+          legend.spacing.x = unit(0.25,"cm"),
+          plot.background = element_rect(fill = "white"),
+          legend.background = element_rect(fill = "white"),
+          panel.background = element_rect(fill = "white"),
+          text = element_text(family = "Cambria"),
+          axis.title.x = element_blank())
+
+
+#print(p2)
+
+p3_data <- masterData[!is.na(masterData$TOPct),]
+
+
+p3 <- ggplot(p3_data,aes(x = Month, y = `TOPct`,fill = as.factor(Year),
+                         family = "Cambria")) + 
+    geom_bar(stat = "identity", width = .9) + #,position = position_dodge2(width= .95,preserve = "single")) +
+    geom_text(stat = "identity", 
+              aes(x = Month, y = `TOPct`,
+                  label = percent_format(accuracy = 1)(`TOPct`)),
+              angle = 0,#position = position_dodge2(width = 0.95, preserve = "single"), 
+              vjust = -1)+
+    ggtitle("Turnover Percent") +
+    theme_bw(base_family = "Cambria") + 
+    scale_fill_manual(values = c("#446ca9","#6ca944","#a9446c"),
+                      labels = stringr::str_pad(sort(unique(p3_data$Year)),10,"right") ) +
+    scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0,max(p3_data$`TOPct`, na.rm = TRUE)*1.4)) +
+    scale_x_discrete(limits = month.abb) +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+          legend.title = element_blank(),
+          legend.spacing.x = unit(0.25,"cm"),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+
+#print(p3)
+
+
+p4_data <- masterDataEnded %>% 
+    group_by(Year = year(EndDate), Month = month(EndDate), Type) %>% 
+    summarise(Total = n()) %>% 
+    ungroup() %>% 
+    spread(key = Type,value = Total) %>% 
+    full_join(masterData,by = c("Year", "Month")) %>% 
+    dplyr::filter(Date>= as.Date('2018-05-01')) %>% 
+    select(Year, Month, Involuntary, Voluntary, FTE) %>% 
+    replace_na(list(Involuntary = 0, Voluntary = 0, FTE = 0)) %>% 
+    mutate(Total = Involuntary + Voluntary + FTE,
+           Involuntary = Involuntary/Total,
+           Voluntary = Voluntary/Total,
+           `Core Group` = FTE/Total) %>% 
+    select(-Total, -FTE) %>% 
+    gather(key = Type,value = Pct, -Year,-Month)
+
+p4_data$Type <-factor(p4_data$Type,levels = sort(unique(p4_data$Type),decreasing = TRUE)) 
+
+p4 <- ggplot(p4_data, aes(Month,Pct, fill = Type, label = percent_format(accuracy = 1)(`Pct`))) + 
+    geom_bar(stat = "identity", width = 0.9) +
+    geom_text(position = position_stack(vjust = 0.5),
+              family = "Cambria") +
+    ggtitle("Workforce Composition") +
+    theme_bw(base_family = "Cambria") + 
+    scale_fill_manual(values = c("#a9446c","#6ca944","#446ca9"))+
+    scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0,1.05)) +
+    scale_x_discrete(limits = month.abb) +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+          legend.title = element_blank(),
+          legend.spacing.x = unit(0.25,"cm"),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+    
+
+#print(p4)
+
+
+
+p5_data <- masterDataEnded %>% group_by(Type,Explanation) %>% 
+    summarise(Total = n()) %>% 
+    arrange(Type,Total)
+
+p5_data$Explanation <- factor(p5_data$Explanation, levels = p5_data$Explanation)
+p5_data$Type <- factor(p5_data$Type, levels = sort(unique(p5_data$Type),decreasing = TRUE))
+firstdate <- paste(month(min(masterDataEnded$EndDate),label =TRUE),year(min(masterDataEnded$EndDate)))
+latestdate <- paste(month(max(masterDataEnded$EndDate),label =TRUE),year(max(masterDataEnded$EndDate)))
+
+
+p5 <- ggplot(p5_data,aes(Explanation,Total, fill = Type, label = Total)) +
+    geom_bar(stat = "identity") +
+    geom_text(hjust = -0.6,
+              family = "Cambria") +
+    ggtitle(paste("Turnover Reasons:",firstdate,"-",latestdate))+
+    coord_flip()+
+    theme_bw(base_family = "Cambria") + 
+    scale_fill_manual(values = c("#a9446c","#6ca944","#446ca9"))+
+    scale_y_continuous(labels = comma_format(accuracy = 1), limits = c(0,max(p5_data$Total, na.rm = TRUE)*1.25)) +
+    #scale_x_discrete(limits = month.abb) +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+          legend.title = element_blank(),
+          legend.spacing.x = unit(0.25,"cm"),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+
+#print(p5)
+
+p6_data_2 <- thisYearTableData %>% 
+    select(Date,Month,`Total New` = TotalNew, `Still Working` = StillWorking) %>% 
+    mutate(`Percent Retained` = `Still Working`/`Total New`) %>% 
+    replace_na(list(`Percent Retained` = 0)) %>% 
+    mutate(`Percent Retained Modified` = `Percent Retained`*(max(`Total New`) / max(`Percent Retained`))) %>% 
+    arrange(Date)
+
+p6_data <- thisYearTableData %>% 
+    select(Month,`Total New` = TotalNew, `Still Working` = StillWorking) %>% 
+    gather(key = "Type", value = "Total", -Month) 
+
+p6_data$Month <- ordered(p6_data$Month, levels = p6_data_2$Month)
+p6_data_2$Month <- ordered(p6_data_2$Month, levels = p6_data_2$Month)
+
+scalefactor <- (max(p6_data_2$`Total New`)/max(p6_data_2$`Percent Retained`))
+
+p6 <- ggplot() + 
+    geom_bar(data =p6_data,aes(x = factor(Month), y = Total, fill = Type,
+                      family = "Cambria"),stat = "identity",position = position_dodge2(width= .95,preserve = "single")) +
+    geom_line(data = p6_data_2, aes(x = factor(Month), y = `Percent Retained Modified`, 
+                                    group = 1, linetype = "Retention Percentage")) +
+    geom_text(data = p6_data,aes(x = factor(Month), y = Total,
+                                 label = comma_format(accuracy = 1)(Total),
+                                 group = Type,
+                                 family = "Cambria"),
+              angle = 0,
+              stat = "identity",
+              position = position_dodge2(width = 0.95, preserve = "single"),
+              vjust = -1) +
+    ggtitle("Hired and Retained") +
+    theme_bw(base_family = "Cambria") + 
+    scale_fill_manual(values = c("#446ca9","#6ca944","#a9446c"),
+                      labels = stringr::str_pad(sort(unique(p6_data$Type)),10,"right") ) +
+    scale_y_continuous(labels = comma_format(accuracy = 1), 
+                       limits = c(0,max(p6_data$Total, na.rm = TRUE)*1.25),
+                       sec.axis = sec_axis(~(./scalefactor),
+                                           labels = percent_format(accuracy = 1),
+                                           name = )) +
+    scale_x_discrete(labels = month.abb[as.numeric(levels(p6_data_2$Month))]) +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+          legend.title = element_blank(),
+          legend.spacing.x = unit(0.25,"cm"),
+          legend.box = "vertical",
+          plot.background = element_rect(fill = "white"),
+          legend.background = element_rect(fill = "white"),
+          panel.background = element_rect(fill = "white"),
+          text = element_text(family = "Cambria"),
+          axis.title.x = element_blank()) 
+
+
+
+
+
+```
+
+
+```{r, out.width="0.85\\linewidth", fig.align= 'center'}
+print(p6)
+```
+
+
+
+```{r,printed, out.width="0.85\\linewidth", fig.align= 'center'}
+print(p2)
+```
+
+```{r,results = 'asis'}
+# avgFTE <- masterData %>% group_by(Year) %>%
+#     summarise(Average = mean(FTE,na.rm = TRUE)) %>%
+#     mutate(Average = comma_format(accuracy = .01)(Average))
+# output <- "Average| "
+# for(i in 1:nrow(avgFTE)){
+#     output <- cat(output,avgFTE$Year[i],"-",avgFTE$Average[i], "|\t")
+# }
+
+```
+
+```{r, out.width="0.85\\linewidth", fig.align= 'center'}
+print(p1)
+```
+
+```{r, out.width="0.85\\linewidth", fig.align= 'center'}
+print(p3)
+
+```
+
+```{r, out.width="0.85\\linewidth", fig.align= 'center'}
+print(p4)
+
+```
+
+```{r, out.width="0.85\\linewidth", fig.align= 'center'}
+print(p5)
+```
+
+

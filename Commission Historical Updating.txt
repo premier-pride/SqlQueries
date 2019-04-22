@@ -1,0 +1,63 @@
+DECLARE @Temp TABLE(CustomerID INT)
+DECLARE @SRIdent INT;
+DECLARE @EffectiveDate SMALLDATETIME;
+
+
+INSERT INTO @Temp (CustomerID)
+(SELECT CustomerID FROM CustomerRoot where RootCustomerId in (1330));
+
+
+--INSERT INTO @Temp VALUES (90),(388),(544),(1048),(2836);
+
+SET @SRIdent = 1561
+SET @EffectiveDate = '3/1/2019'
+
+---------Check to see what you will be updating ------------------
+
+SELECT  * FROM AssignmentAllocations AA
+INNER JOIN AssignmentRoot A on  AA.ItemId = A.ItemID
+INNER JOIN Order_Root O ON A.OrderID = O.OrderID
+INNER JOIN CustomerRoot C ON O.CustomerId = C.CustomerId
+WHERE C.CustomerID in (SELECT * FROM @Temp)
+
+
+
+
+SELECT AccountManagerSrident, * FROM CustomerRoot where CustomerID in (SELECT * FROM @Temp)
+
+
+SELECT * FROM TxnsAssignmentAllocations AA
+INNER JOIN AssignmentRoot A on  AA.ItemId = A.ItemID
+INNER JOIN Order_Root O ON A.OrderID = O.OrderID
+INNER JOIN CustomerRoot C ON O.CustomerId = C.CustomerId
+WHERE C.CustomerID in (SELECT * FROM @Temp)
+
+
+
+---------Create Backups------------------
+--SELECT * INTO zzAssignmentAllocations04202019 FROM AssignmentAllocations
+--SELECT * INTO zzCustomerRoot04202019 FROM CustomerRoot
+--SELECT * INTO zzTxnsAssignmentAllocations04202019 FROM TxnsAssignmentAllocations
+
+
+---------Update The Tables------------------
+
+--UPDATE AA
+--SET SRIdent = @SRIdent
+--FROM AssignmentAllocations AA
+--INNER JOIN AssignmentRoot A on  AA.ItemId = A.ItemID
+--INNER JOIN Order_Root O ON A.OrderID = O.OrderID
+--INNER JOIN CustomerRoot C ON O.CustomerId = C.CustomerId
+--WHERE C.CustomerID in (SELECT * FROM @Temp)
+
+--UPDATE CustomerRoot
+--SET AccountManagerSrident = @SRIdent
+--WHERE CustomerID in (SELECT * FROM @Temp)
+
+--UPDATE AA
+--SET SRIdent = @SRIdent
+--FROM TxnsAssignmentAllocations AA
+--INNER JOIN AssignmentRoot A on  AA.ItemId = A.ItemID
+--INNER JOIN Order_Root O ON A.OrderID = O.OrderID
+--INNER JOIN CustomerRoot C ON O.CustomerId = C.CustomerId
+--WHERE C.CustomerID in (SELECT * FROM @Temp)

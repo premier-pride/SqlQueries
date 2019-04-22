@@ -1,0 +1,65 @@
+---CREATE BACKUP TABLES
+
+--SELECT * INTO zzAssignmentRoot031319 FROM AssignmentRoot;
+--SELECT * INTO zzOrder_Root031319 FROM Order_Root;
+--SELECT * INTO zzCustomerRoot031319 FROM CustomerRoot;
+--SELECT * INTO zzTxnsRoot031319 FROM TxnsRoot;
+--SELECT * INTO zzCtxnsRoot031319 FROM CtxnsRoot;
+
+-----------
+
+DECLARE @Temp TABLE(CustomerID INT)
+DECLARE @SalesTm INT;
+
+
+INSERT INTO @Temp (CustomerID)
+(SELECT CustomerID FROM CustomerRoot where RootCustomerId in (2596,
+2930,
+2640,
+2625,
+2729,
+2752));
+
+--DECLARE @Temp TABLE(CustomerID INT)
+--INSERT INTO @Temp VALUES (460),(467),(480),(481),(486),
+--(487),(499),(524),(532), (541),(629), (641),(806), (935),(999),(1000),(1230), (2750);
+
+
+SET @SalesTm = 43
+
+
+--CHECK TO SEE WHICH CUSTOMERS YOU ARE UPDATING
+
+SELECT * FROM @Temp
+
+
+-------------------- Non-Historical Updating --------------------
+
+--UPDATE AssignmentRoot
+--SET SalesTeamSID = @SalesTm
+--WHERE OrderId in
+--(SELECT OrderID FROM Order_Root WHERE CustomerId in
+--(SELECT * FROM @Temp));
+
+--UPDATE Order_Root
+--SET SalesTeamSID = @SalesTm
+--WHERE CustomerId in
+--(SELECT * FROM @Temp);
+
+--UPDATE CustomerRoot
+--SET SalesTeamSID = @SalesTm
+---- CustomerTypeId = 21
+--WHERE CustomerID in 
+--(SELECT * FROM @Temp);
+
+-------------------- Historical Updating --------------------
+
+--UPDATE TxnsRoot
+--SET SalesTeamSID = @SalesTm
+--WHERE CustomerId in 
+--(SELECT * FROM @Temp);
+
+--UPDATE CtxnsRoot
+--SET SalesTeamSID = @SalesTm
+--WHERE CustomerId in 
+--(SELECT * FROM @Temp);

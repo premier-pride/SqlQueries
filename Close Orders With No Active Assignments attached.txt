@@ -1,0 +1,18 @@
+SELECt O.Active,AcctCode, * FROM Order_Root O
+LEFT JOIN (SELECT * FROM AssignmentRoot WHERE ActiveStatus = 1) A ON O.OrderID = A.OrderID  
+INNER JOIN OrderStatusTableRoot OSTR ON O.OrderStatusIdent = OSTR.OrderStatusIdent 
+WHERE OSTR.ImpliesActive = 1 AND ItemID IS NULL
+ORDER BY O.OrderID
+
+--SELECT * INTO zzOrder_Root03152019 FROM Order_Root
+
+--UPDATE O
+--SET O.OrderStatusIdent = 10
+--FROM Order_Root O
+--LEFT JOIN (SELECT * FROM AssignmentRoot WHERE ActiveStatus = 1) A ON O.OrderID = A.OrderID  
+--INNER JOIN OrderStatusTableRoot OSTR ON O.OrderStatusIdent = OSTR.OrderStatusIdent 
+--WHERE OSTR.ImpliesActive = 1 AND ItemID IS NULL
+
+
+
+

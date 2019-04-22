@@ -1,0 +1,14 @@
+SELECT CC.CustomerId,CC.CustomerName,O.Shift,sum(t.TotalBill) TotalBill FROM CustomerRoot C 
+INNER JOIN CustomerRoot CC on C.RootCustomerId = CC.CustomerId
+INNER JOIN Order_Root O ON O.CustomerId = C.CustomerId
+INNER JOIN AssignmentRoot A ON O.OrderID = A.OrderID
+INNER JOIN TxnsRoot T ON T.ItemID = A.ItemID
+INNER JOIN PrPayCodeRoot PCR ON PCR.PcIdent = T.PcIdent
+WHERE C.CustomerName like '%Menasha%'
+AND T.WeekendBill >= '1/1/2018'
+AND T.WeekendBill <  '1/1/2019'
+and T.PcIdent = 0
+GROUP BY
+CC.CustomerId,
+CC.CustomerName,
+O.Shift

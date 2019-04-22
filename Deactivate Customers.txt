@@ -1,0 +1,30 @@
+SELECT Z.CustomerID,Z.CustomerName,BranchName,AccountManager,LastWorked, CASE WHEN C.RootCustomerId = Z.CustomerId THEN 1 ELSE 0 END AS IsRootCustomer
+ FROM
+	(SELECT C.CustomerId, C.CustomerName,B.BranchName,s.RepName AS AccountManager, max(WeekendDate) LastWorked FROM CustomerRoot C
+	LEFT JOIN TxnsRoot T ON C.CustomerID = T.CustomerId
+	INNER JOIN BranchRoot B on C.BranchID = B.BranchID
+	INNER JOIN servicereproot S WITH ( NOLOCK ) ON C.AccountManagerSrident = S.SRIdent
+	WHERE C.Status = 'A' AND C.ActivationDate <=DATEADD(WeeK, -12,getdate())
+	GROUP BY C.CustomerId, C.CustomerName,B.BranchName, s.RepName) Z
+INNER JOIN CustomerRoot C ON C.CustomerId = Z.CustomerID
+WHERE Z.LastWorked <=DATEADD(WeeK, -12,getdate())
+
+AND Z.CustomerID NOT IN (
+SELECT DISTINCT(C.RootCustomerId) FROM TxnsRoot T
+	INNER JOIN CustomerRoot C ON t.CustomerID = C.CustomerID
+	WHERE T.WeekendDate >= DATEADD(WeeK, -12,getdate())
+UNION
+	SELECT Distinct(C.ParentCustomerId) FROM TxnsRoot T
+	INNER JOIN CustomerRoot C ON t.CustomerID = C.CustomerID
+	WHERE T.WeekendDate >= DATEADD(WeeK, -12,getdate()) AND C.ParentCustomerId IS NOT NULL
+	)
+OR Z.LastWorked IS NULL
+AND Z.CustomerID NOT IN (
+SELECT DISTINCT(C.RootCustomerId) FROM TxnsRoot T
+	INNER JOIN CustomerRoot C ON t.CustomerID = C.CustomerID
+	WHERE T.WeekendDate >= DATEADD(WeeK, -12,getdate())
+UNION
+	SELECT Distinct(C.ParentCustomerId) FROM TxnsRoot T
+	INNER JOIN CustomerRoot C ON t.CustomerID = C.CustomerID
+	WHERE T.WeekendDate >= DATEADD(WeeK, -12,getdate()) AND C.ParentCustomerId IS NOT NULL
+	)

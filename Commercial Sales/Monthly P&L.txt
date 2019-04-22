@@ -1,0 +1,1 @@
+EXEC Premier_report_GrossProfitDetail_IntDept_Weekly @StartDate  = '1/1/2017', @EndDate = '3/31/2019';

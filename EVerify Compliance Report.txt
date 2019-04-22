@@ -1,0 +1,72 @@
+SELECT EE.AIdent,FirstTime, LastTry, EligStatementTxt, 
+CASE WHEN LetterXml.value('(/Letters/Letter/LetterPrinted)[1]',
+                                      'varchar(max)') LIKE 'true'
+                 THEN 'TNC Printed'
+                 ELSE ''
+            END AS letter, BranchId FROM EVerify_Case EE 
+INNER JOIN
+(SELECT AIdent, min(DateCreatedUTC)FirstTime, max(DateCreatedUTC) LastTry FROM EVerify_Case
+WHERE DateSubmitted is NOT NULL
+GROUP BY AIdent) EV ON EE.AIdent = EV.AIdent AND EE.DateCreatedUTC= EV.LastTry 
+WHERE EE.AIdent IN
+	(SELECT EE.AIdent FROM EVerify_Case EE 
+	INNER JOIN
+	(SELECT AIdent, min(DateCreatedUTC)FirstTime, max(DateCreatedUTC) LastTry FROM EVerify_Case
+	WHERE DateSubmitted is NOT NULL
+	GROUP BY AIdent) EV ON EE.AIdent = EV.AIdent AND EE.DateCreatedUTC= EV.LastTry 
+	GROUP BY EE.AIdent
+	HAVING COUNT(*) >1 )
+--AND EligStatementTxt = 'Employment Authorized'
+--AND EE.AIdent = 354289
+ORDER BY LastTry DESC
+
+
+SELECT BranchId,BranchName, COUNT(*) TotalRun,
+ROUND(CAST(SUM(Pass)AS FLOAT)/Count(*),4,0) as Percentage FROM
+	(SELECT Z.*, BranchName,
+	CASE 
+	WHEN EligStatementTxt IN (
+	'Verification in Process',
+	'SSA EMPLOYMENT AUTHORIZED',
+	'Employment Authorized',
+	'Employee Referred to SSA',
+	'DHS No Show',
+	'SSA Final Nonconfirmation',
+	'DHS Verification in Process',
+	'Employee Referred to DHS',
+	'DHS Final Nonconfirmation',
+	'INSTITUTE ADDITIONAL VERIFICATION'
+	) THEN 1
+	WHEN EligStatementTxt IN (
+	'SSA Tentative Nonconfirmation (TNC)',
+	'DHS Tentative Nonconfirmation (TNC)',
+	'DHS TENTATIVE NONCONFIRMATION'
+	) AND letter like '%TNC Printed%' THEN 1
+	ELSE 0 
+	END AS Pass FROM
+		(SELECT EE.AIdent,FirstTime, LastTry, EligStatementTxt, 
+		CASE WHEN LetterXml.value('(/Letters/Letter/LetterPrinted)[1]',
+											  'varchar(max)') LIKE 'true'
+						 THEN 'TNC Printed'
+						 ELSE ''
+					END AS letter, BranchId 
+		FROM EVerify_Case EE 
+		INNER JOIN
+		(SELECT AIdent, min(DateCreatedUTC)FirstTime, max(DateCreatedUTC) LastTry FROM EVerify_Case
+		WHERE DateSubmitted is NOT NULL
+		AND DateCreatedUTC >= dateadd(day, -30, getdate())
+		GROUP BY AIdent) EV ON EE.AIdent = EV.AIdent AND EE.DateCreatedUTC= EV.LastTry 
+		WHERE EE.AIdent IN
+			(SELECT EE.AIdent FROM EVerify_Case EE 
+			INNER JOIN
+			(SELECT AIdent, min(DateCreatedUTC)FirstTime, max(DateCreatedUTC) LastTry FROM EVerify_Case
+			WHERE DateSubmitted is NOT NULL
+			GROUP BY AIdent) EV ON EE.AIdent = EV.AIdent AND EE.DateCreatedUTC= EV.LastTry 
+			GROUP BY EE.AIdent
+			HAVING COUNT(*)<2)
+		--AND EligStatementTxt = 'Employment Authorized'
+		--AND EE.AIdent = 799006
+		)Z
+	INNER JOIN BranchRoot B ON B.BranchId = Z.BranchId
+	) Y
+GROUP BY BranchId,BranchName

@@ -1,0 +1,185 @@
+DECLARE @Temp TABLE(CustomerID INT)
+INSERT INTO @Temp (CustomerID)
+(SELECT CustomerID FROM CustomerRoot where RootCustomerId in (101));
+
+--DECLARE @Temp TABLE(CustomerID INT)
+--INSERT INTO @Temp VALUES (460),(467),(480),(481),(486),
+--(487),(499),(524),(532), (541),(629), (641),(806), (935),(999),(1000),(1230), (2750);
+
+SELECT Year, Month, COALESCE(SUM(TotalApplicants),0) TotalApplicants,
+					COALESCE(SUM(TotalAssigned),0) TotalAssigned,
+					COALESCE(SUM(StillWorking),0) StillWorking,
+					COALESCE(SUM(TotalNew),0) TotalNew,
+					COALESCE(SUM(TotalWorked),0) TotalWorked,
+					COALESCE(SUM(Retained),0) Retained,
+					COALESCE(SUM(RetentionPct),0) RetentionPct,
+					COALESCE(SUM(OneCheck),0) OneCheck,
+					COALESCE(SUM(FTE),0) FTE,
+					COALESCE(SUM(TotalEnded),0) TotalEnded,
+					ROUND(CAST(SUM(TotalEnded) AS float)/CAST((SUM(FTE)) AS float),4,0)TOPct  FROM 
+	(SELECT COALESCE(Z.Year,Y.Year,X.Year,W.Year,V.Year, U.Year, ZZ.Year) AS YEAR,
+			COALESCE(Z.Month,Y.Month,X.Month,W.Month,V.Month,U.Month, ZZ.Month ) AS MONTH,
+			Z.TotalApplicants,Y.TotalAssigned,
+			X.StillWorking, X.TotalNew,
+			W.TotalWorked,W.Retained, W.RetentionPct,
+			V.OneCheck,
+			U.FTE,
+			ZZ.TotalEnded FROM
+		(SELECT Year(ActivationDate) Year, Month(ActivationDate) Month, Count(*) AS TotalApplicants FROM EmployeeRoot E
+		WHERE ActivationDate >=
+			(SELECT MIN(ActivationDate) AS ActivationDate FROM CustomerRoot C
+			WHERE CustomerID in (SELECT * FROM @Temp))
+		AND BranchID in
+			(SELECT Distinct(BranchId) BranchID FROM CustomerRoot C
+			WHERE CustomerID in (SELECT * FROM @Temp))
+		GROUP BY Year(ActivationDate), Month(ActivationDate))Z
+
+	FULL OUTER JOIN
+
+		(SELECT  Year(A.StartDate) Year, Month(A.StartDate) Month, COUNT(*) TotalAssigned FROM AssignmentRoot A
+		INNER JOIN Order_Root O on A.OrderID = O.OrderID
+		WHERE O.CustomerId in (SELECT * FROM @Temp)
+		GROUP BY Year(A.StartDate),Month(A.StartDate))Y
+	ON Z.Year = Y.Year AND Z.Month = Y.Month
+
+	FULL OUTER JOIN
+
+		(SELECT Y.Year,Y.Month,
+		Case WHEN X.StillWorking IS NULL THEN 0 ELSE X.StillWorking END AS StillWorking,
+		Y.TotalNew FROM
+			(SELECT Year(StartingDate) YEAR,Month(StartingDate) Month, COUNT(*) TotalNew FROM 
+				(SELECT MIN(WeekendDate) StartingDate FROM TxnsRoot 
+				WHERE CustomerID in (SELECT * FROM @Temp)
+				GROUP BY AIdent) Z
+			GROUP BY Year(StartingDate),Month(StartingDate))Y
+		LEFT JOIN
+			(SELECT Year(StartingDate) YEAR,Month(StartingDate) Month, COUNT(*) StillWorking FROM 
+				(SELECT MIN(WeekendDate) StartingDate, MAX(WeekendDate) EndDate FROM TxnsRoot 
+				WHERE CustomerID in (SELECT * FROM @Temp)
+				GROUP BY AIdent) Z
+			WHERE EndDate >= dateadd(week,-3,getdate())
+			GROUP BY Year(StartingDate),Month(StartingDate))X
+		ON X.YEAR = Y.Year AND X.Month = Y.Month)X
+	ON Z.Year = X.Year AND Z.Month = X.Month
+
+	FULL OUTER JOIN
+
+		(SELECT *,ROUND(CAST(Retained AS float) /CAST(TotalWorked AS float),4,0) RetentionPct FROM 
+			(SELECT Y.Year,Y.Month,Y.TotalWorked,
+			CASE WHEN X.TotalStarted IS NULL THEN 0 ELSE X.TotalStarted END AS TotalStarted,
+			CASE WHEN X.TotalStarted IS NULL THEN  (Y.TotalWorked) ELSE  (Y.TotalWorked - X.TotalStarted) END AS Retained
+			FROM
+				(SELECT YEAR(WeekendDate) Year, MONTH(WeekendDate) Month,COUNT(DISTINCT(AIdent)) TotalWorked FROm TxnsRoot
+				WHERE CustomerID in (SELECT * FROM @Temp)
+				GROUP BY YEAR(WeekendDate), MONTH(WeekendDate))Y
+
+			LEFT JOIN
+
+				(SELECT Year(StartingDate) YEAR,Month(StartingDate) Month, COUNT(*) TotalStarted FROM 
+					(SELECT MIN(WeekendDate) StartingDate FROM TxnsRoot 
+					WHERE CustomerID in (SELECT * FROM @Temp)
+					GROUP BY AIdent)Z
+					GROUP BY Year(StartingDate),Month(StartingDate))X
+			ON Y.Year = X.Year AND Y.Month = X.Month) W) W
+	ON Z.Year = W.Year AND Z.Month = W.Month
+
+	FULL OUTER JOIN
+
+		(SELECT X.YEAR,X.Month,
+		CASE WHEN Y.OneCheck IS NULL THEN  0 ELSE Y.OneCheck END AS OneCheck,
+		X.TotalNew FROM 
+			(SELECT YEAR(StartingDate) Year, MONTH(StartingDate) Month, COUNT(*) OneCheck FROM 
+				(SELECT MIN(WeekendDate) StartingDate, MAX(WeekendDate) EndDate FROM TxnsRoot 
+				WHERE CustomerID in (SELECT * FROM @Temp)
+				GROUP BY AIdent)Z
+			WHERE StartingDate = EndDate
+			GROUP BY YEAR(StartingDate), MONTH(StartingDate))Y
+		RIGHT JOIN
+			(SELECT Year(StartingDate) YEAR,Month(StartingDate) Month, COUNT(*) TotalNew FROM 
+				(SELECT MIN(WeekendDate) StartingDate FROM TxnsRoot 
+				WHERE CustomerID in (SELECT * FROM @Temp)
+				GROUP BY AIdent)Z
+			GROUP BY Year(StartingDate),Month(StartingDate))X
+		ON Y.Year = X.Year AND Y.Month = X.Month) V
+	ON Z.Year = V.Year AND Z.Month = V.Month
+
+	FULL OUTER JOIN
+
+		(SELECT CASE WHEN X.Year IS NULL THEN W.Year ELSE X.Year END AS Year,
+			   CASE WHEN X.Month IS NULL THEN W.Month ELSE X.Month END AS Month,
+			   CASE WHEN FT is NULL THEN PT
+					WHEN PT IS NULL THEN FT ELSE PT+FT END AS FTE FROM 
+			(SELECT Z.Year,Z.Month, COUNT(*) FT FROM 
+				(SELECT AIdent, Year(WeekendDate) Year, Month(WeekendDate) Month, SUM(Thours) Thours FROM TxnsRoot T
+				WHERE CustomerId in (SELECT * FROM @Temp)
+				--AND PcIdent IN (4,43)
+				GROUP BY AIdent,Year(WeekendDate),Month(WeekendDate)) Z
+			WHERE Z.Thours >= 140
+			GROUP BY Z.Year, Z.Month)X
+
+		FULL OUTER JOIN
+
+			(SELECT Y.Year,Y.Month,ROUND(CAST(Y.Thours AS Float)/CAST(140 AS Float),4,0) PT FROM 
+				(SELECT Z.Year,Z.Month, SUM(Thours) Thours FROM 
+					(SELECT AIdent, Year(WeekendDate) Year, Month(WeekendDate) Month, SUM(Thours) Thours FROM TxnsRoot T
+					WHERE CustomerId in (SELECT * FROM @Temp)
+					--AND PcIdent IN (4,43)
+					GROUP BY AIdent,Year(WeekendDate),Month(WeekendDate)) Z
+				WHERE Z.Thours < 140
+				GROUP BY Z.Year, Z.Month)Y)W
+		ON W.Year = X.Year AND W.Month = X.Month) U
+	ON Z.Year = U.Year and Z.Month = U.Month
+	
+	FULL OUTER JOIN 
+	
+	(SELECT Year(EndDate) Year ,Month(EndDate) Month, Count(*) TotalEnded FROM
+		(SELECT Z.ItemID,Z.AIdent,Z.LastName,Z.FirstName,Z.StartDate,Z.EndDate,Y.WeekendDate,P.Perf FROM
+			(SELECT A.ItemID,E.AIdent,E.LastName,E.FirstName, A.StartDate, A.EndDate,A.PerformanceCodeId FROM AssignmentRoot A
+			INNER JOIN Order_Root O
+			ON A.OrderID = O.OrderID
+			INNER JOIN EmployeeRoot E on A.AIdent = E.AIdent
+			WHERE A.EndDate >='5-1-2018'
+			AND DATEDIFF(Day,A.StartDate,A.EndDate) >= 1
+
+			AND O.CustomerId in (SELECT * FROM @Temp))Z
+		LEFT JOIN
+			(SELECT AIdent, MAX(WeekendDate) WeekendDate FROM TxnsRoot
+			WHERE CustomerId IN (SELECT * FROM @Temp)
+			GROUP BY AIdent)Y
+		ON Z.AIdent = Y.AIdent
+		INNER JOIN PerformanceCodeRoot P 
+		ON Z.PerformanceCodeId = P.PerformanceCodeID
+		WHERE P.Perf NOT LIKe 'NT-%'
+		AND P.Perf <>'Open'
+		AND Y.WeekendDate IS NOT NULL) EndedMaster
+	GROUP BY Year(EndDate),Month(EndDate))ZZ 
+	ON Z.Year = ZZ.Year AND Z.Month = ZZ.Month
+	) Z
+
+GROUP BY Year, Month
+ORDER BY Year, Month;
+
+
+
+
+SELECT Z.ItemID,Z.AIdent,Z.LastName,Z.FirstName,Z.StartDate,Z.EndDate,Y.WeekendDate,P.Explanation,DATEDIFF(Day,Z.StartDate,Z.EndDate)DifferenceDays FROM
+	(SELECT A.ItemID,E.AIdent,E.LastName,E.FirstName, A.StartDate, A.EndDate,A.PerformanceCodeId FROM AssignmentRoot A
+	INNER JOIN Order_Root O
+	ON A.OrderID = O.OrderID
+	INNER JOIN EmployeeRoot E on A.AIdent = E.AIdent
+	WHERE A.EndDate >='5-1-2018'
+	AND DATEDIFF(Day,A.StartDate,A.EndDate) >= 1
+
+	AND O.CustomerId in (SELECT * FROM @Temp))Z
+LEFT JOIN
+	(SELECT AIdent, MAX(WeekendDate) WeekendDate FROM TxnsRoot
+	WHERE CustomerId IN (SELECT * FROM @Temp)
+	GROUP BY AIdent)Y
+ON Z.AIdent = Y.AIdent
+INNER JOIN PerformanceCodeRoot P 
+ON Z.PerformanceCodeId = P.PerformanceCodeID
+WHERE P.Perf NOT LIKe 'NT-%'
+AND P.Perf <>'Open'
+AND Y.WeekendDate IS NOT NULL
+
+

@@ -1,0 +1,30 @@
+UInsertCreate fx_ReportSecRole
+
+SELECT * FROM fx_ReportRoot WHERE Name like 'Premier %'
+
+
+-- select * into dbo.zzfx_ReportRoot12282018 from fx_ReportRoot
+GO
+INSERT fx_ReportRoot (
+                                          Name,
+  Description,                            ReportPath,
+  SampleReportImage,                      ReportGroupId,
+  IsActive,                               HierId,
+  DoNotDisplayInReportsArea
+)SELECT
+                                          'Premier Deactivate Customer List',
+  'Displays customer contact information for active/inactive/all customers.  Allows you to filter on the customer status and branch. And See Those who have not invoiced',  
+  '/Premier_CustListdeact',
+  NULL,                      '484BA6CC-E5AB-4552-AF76-B7D55D2727D7',
+  1,                               1,
+  0
+
+  SELECT * FROM fx_ReportSecRole WHERE ReportId = 'C6988393-7F0D-47BA-B8F8-64C467B4EB6F'
+
+  44959BA2-680C-43B9-B893-382177460B34
+
+  INSERT fx_ReportSecRole (
+  SecRoleId,                ReportId
+)SELECT
+  '44959BA2-680C-43B9-B893-382177460B34', 'C6988393-7F0D-47BA-B8F8-64C467B4EB6F'
+

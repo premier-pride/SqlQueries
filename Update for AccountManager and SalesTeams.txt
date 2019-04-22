@@ -1,0 +1,58 @@
+DECLARE @Temp TABLE(CustomerID INT)
+DECLARE @SalesTeamSID INT;
+DECLARE @AccountManagerSrident INT;
+
+
+
+INSERT INTO @Temp (CustomerID)
+(SELECT CustomerID FROM CustomerRoot where RootCustomerId in (
+1736
+));
+
+--DECLARE @Temp TABLE(CustomerID INT)
+--INSERT INTO @Temp VALUES (460),(467),(480),(481),(486),
+--(487),(499),(524),(532), (541),(629), (641),(806), (935),(999),(1000),(1230), (2750);
+
+SET @SalesTeamSID = 29
+SET @AccountManagerSrident = 1095
+
+
+---------- Check What You are going to be Updating -----------------
+
+--SELECT SalesTeamSid, AccountManagerSrident,* FROM CustomerRoot
+--WHERE RootCustomerId in (SELECT * FROM @Temp);
+
+--SELECT * FROM Order_Root O
+--INNER JOIN CustomerRoot C on O.CustomerId = C.CustomerId
+--WHERE C.CustomerId IN (SELECT * FROM @Temp);
+
+--SELECT * FROM AssignmentRoot A
+--INNER JOIN Order_Root O ON A.OrderId = O.OrderId
+--INNER JOIN CustomerRoot C on O.CustomerId = C.CustomerId
+--WHERE C.CustomerId IN (SELECT * FROM @Temp);
+
+---------- Make Backup Tables -----------------
+--SELECT * INTO zzCustomerRoot03262019Callin FROM CustomerRoot;
+--SELECT * INTO zzOrder_Root03262019 FROM Order_Root;
+--SELECT * INTO zzAssignmentRoot03262019 FROM AssignmentRoot;
+
+---------- Check What You are going to be Updating -----------------
+
+--If you are updating only account manager only the CustomerRoot Table needs to be updated
+
+--UPDATE CustomerRoot
+--SET SalesTeamSid = @SalesTeamSID, AccountManagerSrident = AccountManagerSrident
+--WHERE RootCustomerId in (SELECT * FROM @Temp);
+
+--UPDATE O
+--SET SalesTeamSID = @SalesTeamSID
+--FROM Order_Root O
+--INNER JOIN CustomerRoot C on O.CustomerId = C.CustomerId
+--WHERE C.CustomerId IN (SELECT * FROM @Temp);
+
+--UPDATE A
+--SET SalesTeamSID = @SalesTeamSID 
+--FROM AssignmentRoot A
+--INNER JOIN Order_Root O ON A.OrderId = O.OrderId
+--INNER JOIN CustomerRoot C on O.CustomerId = C.CustomerId
+--WHERE C.CustomerId IN (SELECT * FROM @Temp);

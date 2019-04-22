@@ -1,0 +1,50 @@
+SELECT C.FirstName,C.LastName,Y.StartDate,X.Year,X.TotalHours FROM
+	(SELECT * FROM 
+		(SELECT  AIdent, MIN(WeekendDate) AS StartDate  FROM TxnsRoot 
+		WHERE CustomerId in 
+		(SELECT CustomerId FROM CustomerRoot WHERE RootCustomerId in (2657,2472,2477,2569,2460,2643,2596,2625))
+		AND PcIdent in (4,17)
+		GROUP BY AIdent)z
+	WHERE z.StartDate <=('1-10-18'))Y
+INNER JOIN
+	(SELECT * FROM 
+		(SELECT  AIdent,Year(WeekendDate) Year, SUM(THours) AS TotalHours FROM TxnsRoot 
+		WHERE CustomerId in 
+		(SELECT CustomerId FROM CustomerRoot WHERE RootCustomerId in (2657,2472,2477,2569,2460,2643,2596,2625))
+		AND PcIdent in (4,17)
+		GROUP BY AIdent, YEAR(WeekendDate))z
+	WHERE TotalHours >=1500) X
+ON Y.AIdent = X.AIdent
+INNER JOIN 
+EmployeeRoot C on Y.AIdent = C.AIdent
+
+SELECT C.CustomerName,E.FirstName,E.LastName,StartDate,EndDate,TotalHours FROM
+	(SELECT W.Aident,RootCustomerId,StartDate,EndDate,TotalHours FROM
+		(SELECT z.Aident,z.RootCustomerId,StartDate,TotalHours FROM
+			(SELECT AIdent,C.RootCustomerId,min(WeekendDate) AS StartDate FROM TxnsRoot T
+			INNER JOIN CustomerRoot C on T.CustomerID = C.CustomerId
+			WHERE T.CustomerId in 
+			(SELECT CustomerId FROM CustomerRoot WHERE RootCustomerId in (2657,2472,2477,2569,2460,2643,2596,2625))
+			AND PcIdent in (4,17)
+			GROUP BY AIdent,C.RootCustomerId)z
+		INNER JOIN
+			(SELECT AIdent,C.RootCustomerId,SUM(Thours) AS TotalHours FROM TxnsRoot T
+			INNER JOIN CustomerRoot C on T.CustomerID = C.CustomerId
+			WHERE T.CustomerId in 
+			(SELECT CustomerId FROM CustomerRoot WHERE RootCustomerId in (2657,2472,2477,2569,2460,2643,2596,2625))
+			AND WeekendDate >='1-1-18' AND WeekendDate<'1-1-19'
+			AND PcIdent in (4,17)
+			GROUP BY AIdent,C.RootCustomerId) Y
+		ON Z.AIdent = Y.AIdent AND Z.RootCustomerId = Y.RootCustomerId) W
+	LEFT JOIN
+		(SELECT * FROM
+			(SELECT AIdent,MAX(WeekendDate) AS EndDate FROM TxnsRoot 
+			WHERE CustomerId in 
+			(SELECT CustomerId FROM CustomerRoot WHERE RootCustomerId in (2657,2472,2477,2569,2460,2643,2596,2625))
+			AND PcIdent in (4,17)
+			GROUP BY AIdent)X
+		WHERE EndDate <='12-9-2018')V
+	ON W.AIdent = V.AIdent) U
+INNER JOIN CustomerRoot C ON U.RootCustomerId = C.CustomerId
+INNER JOIN EmployeeRoot E ON U.Aident = E.AIdent
+ORDER BY CustomerName,FirstName,LastName

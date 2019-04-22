@@ -1,0 +1,9 @@
+
+SELECT E.AIdent,E.FirstName,E.LastName,CAR.City,Car.State FROM TxnsRoot T
+INNER JOIN EmployeeRoot E ON T.AIdent = E.AIdent
+INNER JOIN AssignmentRoot A on T.ItemID = A.ItemID
+INNER JOIN Order_Root O ON A.OrderID = O.OrderId
+INNER JOIN CustomerAddressRoot CAR ON O.AddrID = CAR.AddrID
+WHERE A.BranchId in (SELECT BranchId FROM BranchRoot WHERE BranchName LIKE '%STA%' OR BranchName LIKE '%Corpor%')
+AND(A.EndDate is NULL OR A.EndDate >= GETDATE())
+GROUP BY E.AIdent,E.FirstName,E.LastName, CAR.City,Car.State

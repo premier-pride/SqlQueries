@@ -1,0 +1,8 @@
+SELECT CR.CustomerId, CR.CustomerName,B.BranchName, max(WeekendDate) LastWorked FROM TxnsRoot T
+INNER JOIN CustomerRoot C ON T.CustomerId = C.CustomerId
+INNER JOIN CustomerRoot CR ON C.RootCustomerId = CR.CustomerId
+INNER JOIN BranchRoot B ON B.BranchId = CR.BranchId
+Where CR.CustomerTypeId in (20,22)
+GROUP BY CR.CustomerId, CR.CustomerName, B.BranchName
+HAVING max(WeekendDate) >= '9-1-17' AND max(WeekendDate) < '05-01-18'
+ORDER BY BranchName, CustomerName

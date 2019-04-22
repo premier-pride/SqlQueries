@@ -1,0 +1,13 @@
+DECLARE @Temp TABLE(CustomerID INT)
+INSERT INTO @Temp (CustomerID)
+(SELECT CustomerID FROM CustomerRoot where RootCustomerId in (400));
+
+--DECLARE @Temp TABLE(CustomerID INT)
+--INSERT INTO @Temp VALUES (460),(467),(480),(481),(486),
+--(487),(499),(524),(532), (541),(629), (641),(806), (935),(999),(1000),(1230), (2750);
+
+SELECT T.AIdent,E.LastName,E.FirstName,min(WeekendDate)StartDate,
+MAX(WeekendDate) LatestCheck FROM TxnsRoot T
+INNER JOIN EmployeeRoot E ON T.AIdent = E.AIdent
+WHERE T.CustomerId IN (SELECT * FROM @Temp)
+GROUP BY T.AIdent, E.LastName, E.FirstName

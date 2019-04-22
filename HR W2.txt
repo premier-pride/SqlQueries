@@ -1,0 +1,51 @@
+SELECT V.*,U.Perf FROM
+	(SELECT T.AIdent, E.FirstName,E.LastName,E.SSN,EEO.EmployeeDOB, SUM(thours) TotalHours, SUM(Gross) GrossPay  FROM TxnsRoot T
+	LEFT JOIN 
+	AssignmentRoot A on T.ItemID = A.ItemID
+	LEFT JOIN
+	EmployeeEEO EEO on EEO.AIdent = T.AIdent
+	LEFT JOIN
+	EmployeeRoot E ON E.AIdent = T.AIdent
+	WHERE CheckDate >= '1-1-2018' AND CheckDate < '1-1-2019'
+	AND A.BranchId in (SELECT BranchId FROM BranchRoot WHERE BranchName LIKE '%STA%' OR BranchName LIKE '%Corpor%')
+	GROUP BY T.AIdent,EEO.EmployeeDOB, E.SSN, E.FirstName,E.LastName)V
+Left Join
+	(SELECT W.AIdent, P.Perf FROM
+		(SELECT Y.* FROM
+			(SELECT T.AIdent, A.ItemID, max(CheckDate) CheckDate FROM TxnsRoot T
+			INNER JOIN 
+			AssignmentRoot A on T.ItemID = A.ItemID
+			WHERE CheckDate >= '1-1-2018' AND CheckDate < '1-1-2019'
+			AND A.BranchId in (SELECT BranchId FROM BranchRoot WHERE BranchName LIKE '%STA%' OR BranchName LIKE '%Corpor%')
+			GROUP BY T.AIdent, A.ItemID)Y
+		INNER JOIN
+			(SELECT AIdent, Max(CheckDate) CheckDate FROM
+				(SELECT T.AIdent, A.ItemID, max(CheckDate) CheckDate FROM TxnsRoot T
+				INNER JOIN 
+				AssignmentRoot A on T.ItemID = A.ItemID
+				WHERE CheckDate >= '1-1-2018' AND CheckDate < '1-1-2019'
+				AND A.BranchId in (SELECT BranchId FROM BranchRoot WHERE BranchName LIKE '%STA%' OR BranchName LIKE '%Corpor%')
+				GROUP BY T.AIdent, A.ItemID) Z
+			GROUP BY Z.AIdent) X
+		ON Y.AIdent = X.AIdent AND Y.CheckDate = X.CheckDate) W
+	LEFT JOIN
+	AssignmentRoot A on A.ItemID = W.AIdent
+	LEFT JOIN
+	PerformanceCodeRoot P ON A.PerformanceCodeId = P.PerformanceCodeID) U
+ON V.AIdent = U.AIdent
+
+
+SELECT PAR.AIdent,PA.AdjId,PA.AdjName,
+CASE WHEN PA.AdjId = 2 THEN SUM(PAR.BenefitAmount) ELSE SUM(PAR.Amount) END AS Total
+FROM PrCheckAdjRoot PAR
+INNER JOIN PrAdjRoot PA on PA.AdjId = PAR.AdjId
+RIGHT JOIN
+(SELECT Distinct T.AIdent,ChkID FROM TxnsRoot T 
+INNER JOIN
+AssignmentRoot A on T.ItemID = A.ItemID
+WHERE CheckDate >= '1-1-2018' AND CheckDate < '1-1-2019' 
+AND A.BranchId in (SELECT BranchId FROM BranchRoot WHERE BranchName LIKE '%STA%' OR BranchName LIKE '%Corpor%')
+GROUP BY T.AIdent,ChkID) T
+ON T.AIdent = PAR.AIdent AND T.ChkId = PAR.ChkId
+WHERE  PAR.AdjId in (1,2,92)
+GROUP BY PAR.AIdent,PA.AdjId,PA.AdjName

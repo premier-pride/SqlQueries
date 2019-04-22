@@ -1,0 +1,60 @@
+DECLARE @Temp TABLE(CustomerID INT)
+DECLARE @SalesTeamSID INT;
+
+
+
+INSERT INTO @Temp (CustomerID)
+(SELECT CustomerID FROM CustomerRoot where RootCustomerId in (2507));
+
+--DECLARE @Temp TABLE(CustomerID INT)
+--INSERT INTO @Temp VALUES (460),(467),(480),(481),(486),
+--(487),(499),(524),(532), (541),(629), (641),(806), (935),(999),(1000),(1230), (2750);
+
+SET @SalesTeamSID = 87
+
+
+
+---------Check to see what you will be updating ------------------
+
+SELECT SalesTeamSID, * FROM TxnsRoot
+WHERE CustomerID in (SELECT * FROM @Temp)
+AND WeekendDate >= '1-1-19'
+
+--Orders that will be updated
+SELECT SalesTeamSID, * FROM Order_Root
+WHERE CustomerID in (SELECT * FROM @Temp)
+
+--Orders that will be updated
+SELECT SalesTeamSID,* FROM AssignmentRoot WHERE OrderID in 
+(SELECT OrderID FROM Order_Root WHERE CustomerID in (SELECT * FROM @Temp))
+AND (EndDate IS NULL OR EndDate>= GETDATE())
+
+
+
+
+---------Create Backups------------------
+
+--SELECT * INTO zzTxnsRoot02262019 FROM TxnsRoot
+--SELECT * INTO zzOrder_Root02262019 FROM Order_Root
+--SELECT * INTO zzAssignmentRoot02262019 FROM AssignmentRoot
+
+
+
+
+
+---------Update The Tables------------------
+
+--UPDATE TxnsRoot
+--SET SalesTeamSID = @SalesTeamSID
+--WHERE CustomerID in (SELECT * FROM @Temp)
+--AND WeekendDate >= '1-1-19'
+
+--UPDATE Order_Root
+--SET SalesTeamSID = @SalesTeamSID
+--WHERE CustomerID in (SELECT * FROM @Temp)
+
+--UPDATE AssignmentRoot
+--SET SalesTeamSID = @SalesTeamSID
+--WHERE OrderID in 
+--(SELECT OrderID FROM Order_Root WHERE CustomerID in (SELECT * FROM @Temp))
+--AND (EndDate IS NULL OR EndDate>= GETDATE())
